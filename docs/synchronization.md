@@ -8,6 +8,7 @@
 You can use synchronization to limit the parallel execution of workflows or templates.
 You can use mutexes to restrict workflows or templates to only having a single concurrent section.
 You can use semaphores to restrict workflows or templates to a configured number of parallel runs.
+This documentation refers "locks" to mean mutexes and semaphores.
 
 You can create multiple synchronization configurations in the `ConfigMap` that can be referred to from a workflow or template.
 
@@ -144,14 +145,14 @@ spec:
 
 Examples:
 
-1. [Workflow level semaphore](https://github.com/argoproj/argo-workflows/blob/main/examples/synchronization-wf-level.yamlxb)
+1. [Workflow level semaphore](https://github.com/argoproj/argo-workflows/blob/main/examples/synchronization-wf-level.yaml)
 1. [Workflow level mutex](https://github.com/argoproj/argo-workflows/blob/main/examples/synchronization-mutex-wf-level.yaml)
 1. [Step level semaphore](https://github.com/argoproj/argo-workflows/blob/main/examples/synchronization-tmpl-level.yaml)
 1. [Step level mutex](https://github.com/argoproj/argo-workflows/blob/main/examples/synchronization-mutex-tmpl-level.yaml)
 
 ### Multiple synchronization
 
-You can specify multiple mutexes and semaphores to lock in a single workflow or template.
+You can specify multiple locks in a single workflow or template.
 
 ```yaml
 synchronization:
@@ -167,20 +168,25 @@ synchronization:
         name: my-config
 ```
 
-The workflow will block until all of these mutexes and semaphores are available.
+The workflow will block until all of these locks are available.
 
-### Priority
+### Queuing
+
+When a Workflow cannot take a lock it will be placed into a ordered queue.
 
 Workflows can have a `priority` set in their specification.
-Workflows with a higher priority value will be queued to take a semaphore or mutex before a lower priority workflow, even if they have been waiting for less time.
+The queue is first ordered by priority, with a higher priority number being placed before a lower priority number.
+The queue is then ordered by `CreationTimestamp` of the Workflow; older Workflows will be ordered before newer workflows.
+
+Workflows are only be allowed to take a lock if they are at the front of the queue for that lock.
 
 !!! Warning
-    A high priority workflow waiting on multiple mutexes or semaphore will make all other workflows which want to acquire those mutexes wait for it to acquire and release all the mutexes or semaphores it is waiting on.
-    This applies even if the lower priority workflows only wish to acquire a subset of those mutexes or semaphores.
+	Workflow is at the front of the queue and it needs to acquire multiple locks, all other Workflows that also need those same locks will wait.
+    This applies even if the other Workflows only wish to acquire a subset of those locks.
 
 ### Legacy
 
-In workflows prior to 3.6 you can only specify one mutex or semaphore to lock in any one workflow or template using either a mutex:
+In workflows prior to 3.6 you can only specify one lock in any one workflow or template using either a mutex:
 
 ```yaml
     synchronization:
@@ -199,8 +205,8 @@ or a semaphore:
 Specifying both would not work in <3.6, only the semaphore would be used.
 
 The single `mutex` and `semaphore` syntax still works in version 3.6 but is considered deprecated.
-Both mutex and semaphore will be taken in version 3.6 with this syntax.
-This syntax can be mixed with `mutexes` and `semaphores`, all mutexes and semaphores will be used.
+Both the `mutex` and the `semaphore` will be taken in version 3.6 with this syntax.
+This syntax can be mixed with `mutexes` and `semaphores`, all locks will be required.
 
 ## Parallelism
 
