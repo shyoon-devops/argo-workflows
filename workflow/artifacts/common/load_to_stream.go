@@ -28,7 +28,7 @@ func (w selfDestructingFile) Close() error {
 func LoadToStream(a *wfv1.Artifact, g ArtifactDriver) (io.ReadCloser, error) {
 	log.Infof("Efficient artifact streaming is not supported for type %v: see https://github.com/argoproj/argo-workflows/issues/8489",
 		reflect.TypeOf(g))
-	filename := "/tmp/" + rand.String(32)
+	filename := "/tmp/wfstream-" + rand.String(32)
 	if err := g.Load(a, filename); err != nil {
 		return nil, err
 	}
